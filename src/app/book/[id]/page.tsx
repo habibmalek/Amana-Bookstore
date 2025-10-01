@@ -181,7 +181,7 @@ export default function BookDetailPage() {
 
           <button 
             onClick={handleAddToCart}
-            className="w-full bg-blue-500 text-white py-3 rounded-md hover:bg-blue-600 transition-colors duration-300 text-lg font-semibold cursor-pointer"
+            className="w-full bg-red-500 text-white py-3 rounded-md hover:bg-red-600 transition-colors duration-300 text-lg font-semibold cursor-pointer"
           >
             Add to Cart
           </button>
