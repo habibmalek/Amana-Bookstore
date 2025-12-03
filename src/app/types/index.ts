@@ -20,6 +20,19 @@ export interface Book {
   featured: boolean;
 }
 
+export interface CartItemDB {
+  bookId: string;
+  quantity: number;
+}
+
+export interface CartDocument {
+  _id: string;
+  cartId: string;
+  items: CartItemDB[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface CartItem {
   id: string;
   bookId: string;

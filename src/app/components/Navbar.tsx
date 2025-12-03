@@ -1,62 +1,43 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/app/components/Navbar.tsx
 'use client';
-
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import { useState, useEffect } from 'react';
-import { CartItem } from '../types';
-
-const Navbar: React.FC = () => {
-  const [cartItemCount, setCartItemCount] = useState(0);
+export default function Navbar() {
+  const [cartCount, setCartCount] = useState(0);
   const pathname = usePathname();
 
+  const updateCartCount = async () => {
+    const cartId = localStorage.getItem('cartId');
+    if (!cartId) {
+      setCartCount(0);
+      return;
+    }
+    const res = await fetch(`/api/cart?cartId=${cartId}`);
+    const data = await res.json();
+    const count = data.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
+    setCartCount(count);
+  };
+
   useEffect(() => {
-    // This function updates the cart count from localStorage.
-    // It's designed to run on the client side only.
-    const updateCartCount = () => {
-      const storedCart = localStorage.getItem('cart');
-      if (storedCart) {
-        try {
-          const cart: CartItem[] = JSON.parse(storedCart);
-          const count = cart.reduce((total, item) => total + item.quantity, 0);
-          setCartItemCount(count);
-        } catch (error) {
-          console.error('Failed to parse cart from localStorage', error);
-          setCartItemCount(0);
-        }
-      } else {
-        setCartItemCount(0);
-      }
-    };
-
-    // Initial update
     updateCartCount();
-
-    // Listen for custom event to update cart count
     window.addEventListener('cartUpdated', updateCartCount);
-
-    // Clean up the event listener
-    return () => {
-      window.removeEventListener('cartUpdated', updateCartCount);
-    };
+    return () => window.removeEventListener('cartUpdated', updateCartCount);
   }, []);
-  
+
   return (
     <nav className="bg-white shadow-md fixed w-full top-0 z-10">
       <div className="container mx-auto px-6 py-3 flex justify-between items-center">
-        <Link href="/" className="text-2xl font-bold text-gray-800 cursor-pointer">
-          Amana Bookstore
-        </Link>
-        <div className="flex items-center space-x-4">
-          <Link href="/" className={`text-gray-600 hover:text-blue-500 cursor-pointer ${pathname === '/' ? 'text-blue-500 font-semibold' : ''}`}>
-            Home
-          </Link>
-          <Link href="/cart" className={`text-gray-600 hover:text-blue-500 flex items-center cursor-pointer ${pathname === '/cart' ? 'text-blue-500 font-semibold' : ''}`}>
+        <Link href="/" className="text-2xl font-bold">Amana Bookstore</Link>
+        <div className="flex space-x-4">
+          <Link href="/" className={pathname === '/' ? 'text-blue-600 font-semibold' : ''}>Home</Link>
+          <Link href="/cart" className="flex items-center">
             My Cart
-            {cartItemCount > 0 && (
-              <span className="ml-2 bg-blue-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                {cartItemCount}
+            {cartCount > 0 && (
+              <span className="ml-2 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {cartCount}
               </span>
             )}
           </Link>
@@ -64,6 +45,4 @@ const Navbar: React.FC = () => {
       </div>
     </nav>
   );
-};
-
-export default Navbar;
+}

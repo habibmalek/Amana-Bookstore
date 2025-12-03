@@ -1,28 +1,96 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/app/api/cart/route.ts
 import { NextResponse } from 'next/server';
+import { getDb } from '@/lib/mongodb';
+import { CartItemDB, CartDocument } from '@/app/types';
 
-// GET /api/cart - Get cart items
-export async function GET() {
-  // In a real application, this would fetch cart items from a database
-  // based on user session or authentication token
-  return NextResponse.json({ message: 'Cart API endpoint - GET method' });
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const cartId = searchParams.get('cartId');
+
+    if (!cartId) {
+      return NextResponse.json({ error: 'cartId is required' }, { status: 400 });
+    }
+
+    const db = await getDb();
+    const cart = await db.collection<CartDocument>('carts').findOne({ cartId });
+
+    if (!cart) {
+      return NextResponse.json({ items: [] });
+    }
+
+    const items: CartItemDB[] = Array.isArray(cart.items) ? cart.items : [];
+
+    if (items.length === 0) {
+      return NextResponse.json({ items: [] });
+    }
+
+    // Fetch book details
+    const bookIds = items.map(item => item.bookId);
+    const books = await db
+      .collection('books')
+      .find({ id: { $in: bookIds } })
+      .toArray();
+
+    const enrichedItems = items.map(item => {
+      const book = books.find(b => b.id === item.bookId);
+      return { ...item, book };
+    });
+
+    return NextResponse.json({ items: enrichedItems });
+  } catch (error) {
+    console.error('Error fetching cart:', error);
+    return NextResponse.json({ error: 'Failed to fetch cart' }, { status: 500 });
+  }
 }
 
-// POST /api/cart - Add item to cart
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    // In a real application, this would add an item to the user's cart in the database
-    return NextResponse.json({ 
-      message: 'Item added to cart successfully',
-      item: body 
-    });
-  } catch (err) {
-    console.error('Error adding item to cart:', err);
-    return NextResponse.json(
-      { error: 'Failed to add item to cart' },
-      { status: 500 }
+    const { cartId, bookId, quantity = 1 }: { cartId: string; bookId: string; quantity?: number } = await request.json();
+
+    if (!cartId || !bookId) {
+      return NextResponse.json({ error: 'cartId and bookId are required' }, { status: 400 });
+    }
+
+    const db = await getDb();
+
+    const result = await db.collection('carts').findOneAndUpdate(
+      { cartId },
+      {
+        $setOnInsert: {
+          cartId,
+          items: [],
+          createdAt: new Date(),
+        },
+        $set: { updatedAt: new Date() },
+      },
+      { upsert: true, returnDocument: 'after' }
     );
+
+    if (!result?.value) {
+      return NextResponse.json({ error: 'Failed to create or retrieve cart' }, { status: 500 });
+    }
+
+    const updatedItems: CartItemDB[] = Array.isArray(result.value.items) ? result.value.items : [];
+
+    const existingIndex = updatedItems.findIndex(item => item.bookId === bookId);
+
+    if (existingIndex >= 0) {
+      updatedItems[existingIndex].quantity += quantity;
+    } else {
+      updatedItems.push({ bookId, quantity });
+    }
+
+    await db.collection('carts').updateOne(
+      { cartId },
+      { $set: { items: updatedItems, updatedAt: new Date() } }
+    );
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error adding to cart:', error);
+    return NextResponse.json({ error: 'Failed to update cart' }, { status: 500 });
   }
 }
 

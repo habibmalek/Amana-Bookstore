@@ -1,133 +1,63 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/app/cart/page.tsx
 'use client';
-
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import CartItem from '../components/CartItem';
-import { books } from '../data/books';
-import { Book, CartItem as CartItemType } from '../types';
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<{ book: Book; quantity: number }[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [cartItems, setCartItems] = useState<{ book: any; quantity: number }[]>([]);
 
   useEffect(() => {
-    // Load cart from localStorage
-    const storedCart = localStorage.getItem('cart');
-    if (storedCart) {
-      try {
-        const cart: CartItemType[] = JSON.parse(storedCart);
-        const itemsWithBooks = cart
-          .map(item => {
-            const book = books.find(b => b.id === item.bookId);
-            return book ? { book, quantity: item.quantity } : null;
-          })
-          .filter((item): item is { book: Book; quantity: number } => item !== null);
-        
-        setCartItems(itemsWithBooks);
-      } catch (error) {
-        console.error('Failed to parse cart from localStorage', error);
-        setCartItems([]);
-      }
-    }
-    setIsLoading(false);
+    const fetchCart = async () => {
+      const cartId = localStorage.getItem('cartId');
+      if (!cartId) return;
+
+      const res = await fetch(`/api/cart?cartId=${cartId}`);
+      const data = await res.json();
+      setCartItems(data.items || []);
+    };
+    fetchCart();
   }, []);
 
-  const updateQuantity = (bookId: string, newQuantity: number) => {
-    if (newQuantity < 1) return;
+  const totalPrice = cartItems.reduce((sum, item) => sum + item.book.price * item.quantity, 0);
 
-    // Update local state
-    const updatedItems = cartItems.map(item => 
-      item.book.id === bookId ? { ...item, quantity: newQuantity } : item
+  if (cartItems.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center">
+        <h1 className="text-2xl mb-4">Your cart is empty</h1>
+        <Link href="/" className="bg-blue-600 text-white px-6 py-2 rounded">Continue Shopping</Link>
+      </div>
     );
-    setCartItems(updatedItems);
-
-    // Update localStorage
-    const cartForStorage = updatedItems.map(item => ({
-      id: `${item.book.id}-${Date.now()}`,
-      bookId: item.book.id,
-      quantity: item.quantity,
-      addedAt: new Date().toISOString()
-    }));
-    localStorage.setItem('cart', JSON.stringify(cartForStorage));
-    
-    // Notify navbar
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
-  };
-
-  const removeItem = (bookId: string) => {
-    // Update local state
-    const updatedItems = cartItems.filter(item => item.book.id !== bookId);
-    setCartItems(updatedItems);
-
-    // Update localStorage
-    const cartForStorage = updatedItems.map(item => ({
-      id: `${item.book.id}-${Date.now()}`,
-      bookId: item.book.id,
-      quantity: item.quantity,
-      addedAt: new Date().toISOString()
-    }));
-    localStorage.setItem('cart', JSON.stringify(cartForStorage));
-    
-    // Notify navbar
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
-  };
-
-  const clearCart = () => {
-    setCartItems([]);
-    localStorage.removeItem('cart');
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
-  };
-
-  const totalPrice = cartItems.reduce((total, item) => total + (item.book.price * item.quantity), 0);
-
-  if (isLoading) {
-    return <div className="text-center py-10">Loading...</div>;
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Shopping Cart</h1>
-      
-      {cartItems.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow-md">
-          <h2 className="text-xl text-gray-600 mb-4">Your cart is empty</h2>
-          <Link href="/" className="bg-blue-500 text-white px-6 py-3 rounded-md hover:bg-blue-600 transition-colors cursor-pointer">
-            Continue Shopping
-          </Link>
-        </div>
-      ) : (
-        <>
-          <div className="bg-white rounded-lg shadow-md">
-            {cartItems.map((item) => (
-              <CartItem
-                key={item.book.id}
-                item={item}
-                onUpdateQuantity={updateQuantity}
-                onRemoveItem={removeItem}
-              />
-            ))}
-          </div>
-          
-          <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-            <div className="flex justify-between items-center text-xl font-bold mb-4 text-gray-800">
-              <span>Total: ${totalPrice.toFixed(2)}</span>
+      <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
+      <div className="space-y-4">
+        {cartItems.map(item => (
+          <div key={item.book.id} className="p-4 border rounded flex justify-between">
+            <div>
+              <h3>{item.book.title}</h3>
+              <p>${item.book.price.toFixed(2)} × {item.quantity}</p>
             </div>
-            
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/" className="flex-1 bg-gray-500 text-white text-center py-3 rounded-md hover:bg-gray-600 transition-colors cursor-pointer">
-                Continue Shopping
-              </Link>
-              <button 
-                onClick={clearCart}
-                className="flex-1 bg-red-500 text-white py-3 rounded-md hover:bg-red-600 transition-colors cursor-pointer"
-              >
-                Clear Cart
-              </button>
-            </div>
+            <p>${(item.book.price * item.quantity).toFixed(2)}</p>
           </div>
-        </>
-      )}
+        ))}
+      </div>
+      <div className="mt-8 text-xl font-bold">Total: ${totalPrice.toFixed(2)}</div>
+      <div className="mt-4 flex gap-4">
+        <Link href="/" className="bg-gray-500 text-white px-6 py-2 rounded">Continue Shopping</Link>
+        <button
+          onClick={() => {
+            localStorage.removeItem('cartId');
+            setCartItems([]);
+            window.dispatchEvent(new CustomEvent('cartUpdated'));
+          }}
+          className="bg-red-600 text-white px-6 py-2 rounded"
+        >
+          Clear Cart
+        </button>
+      </div>
     </div>
   );
 }
