@@ -16,8 +16,10 @@ export default function HomePage() {
     fetchBooks();
   }, []);
 
+  // Simple cart handler that redirects to book detail page
   const handleAddToCart = (bookId: string) => {
-    // Handled per-book page; no-op here
+    // This is handled in the book detail page
+    console.log('Navigate to book detail to add to cart');
   };
 
   return (

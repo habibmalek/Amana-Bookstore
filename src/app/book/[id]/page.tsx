@@ -33,32 +33,32 @@ export default function BookDetailPage() {
   }, [id]);
 
   // ✅ THIS IS THE CORRECT "Add to Cart" HANDLER
-  const handleAddToCart = async () => {
-    if (!book) return;
+const handleAddToCart = async () => {
+  if (!book) return;
 
-    // Use existing cartId or create one
-    let cartId = localStorage.getItem('cartId');
-    if (!cartId) {
-      cartId = crypto.randomUUID();
-      localStorage.setItem('cartId', cartId);
-    }
+  // Use existing cartId or create one
+  let cartId = localStorage.getItem('cartId');
+  if (!cartId) {
+    cartId = crypto.randomUUID();
+    localStorage.setItem('cartId', cartId);
+  }
 
-    // ✅ POST to MongoDB API
-    const res = await fetch('/api/cart', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cartId, bookId: book.id, quantity }),
-    });
+  // ✅ POST to MongoDB API
+  const res = await fetch('/api/cart', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cartId, bookId: book.id, quantity }),
+  });
 
-    if (res.ok) {
-      // Notify navbar
-      window.dispatchEvent(new CustomEvent('cartUpdated'));
-      // Go to cart
-      router.push('/cart');
-    } else {
-      alert('Failed to add to cart');
-    }
-  };
+  if (res.ok) {
+    // Notify navbar
+    window.dispatchEvent(new CustomEvent('cartUpdated'));
+    // Go to cart
+    router.push('/cart');
+  } else {
+    alert('Failed to add to cart');
+  }
+};
 
   const renderStars = (rating: number) => {
     const full = Math.floor(rating);
