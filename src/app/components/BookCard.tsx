@@ -55,31 +55,32 @@ const BookCard: React.FC<BookCardProps> = ({ book, onAddToCart }) => {
   };
 
   // Handle add to cart
-  const handleAddToCart = async (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent navigation when clicking the button
-    e.stopPropagation();
+const handleAddToCart = async (e: React.MouseEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  if (!book.inStock || isAddingToCart) return;
+  
+  setIsAddingToCart(true);
+  
+  try {
+    console.log(`BookCard: Adding book ${book.id} to cart`);
     
-    if (!book.inStock || isAddingToCart) return;
-    
-    setIsAddingToCart(true);
-    
-    try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      if (onAddToCart) {
-        onAddToCart(book.id);
-      }
-      
-      // Show success feedback
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 2000);
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-    } finally {
-      setIsAddingToCart(false);
+    // Call the onAddToCart function and wait for it to complete
+    if (onAddToCart) {
+      await onAddToCart(book.id);
     }
-  };
+    
+    // Show success feedback
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 2000);
+  } catch (error) {
+    console.error('Error adding to cart:', error);
+    // Optionally show an error message
+  } finally {
+    setIsAddingToCart(false);
+  }
+};
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transform hover:-translate-y-1 transition-transform duration-300">

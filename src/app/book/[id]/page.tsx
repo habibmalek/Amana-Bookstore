@@ -36,6 +36,8 @@ export default function BookDetailPage() {
 const handleAddToCart = async () => {
   if (!book) return;
 
+  console.log(`Adding book ${book.id} to cart...`);
+  
   // Use existing cartId or create one
   let cartId = localStorage.getItem('cartId');
   if (!cartId) {
@@ -43,20 +45,38 @@ const handleAddToCart = async () => {
     localStorage.setItem('cartId', cartId);
   }
 
-  // ✅ POST to MongoDB API
-  const res = await fetch('/api/cart', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cartId, bookId: book.id, quantity }),
-  });
+  console.log('Calling POST /api/cart with:', { cartId, bookId: book.id, quantity });
 
-  if (res.ok) {
-    // Notify navbar
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
-    // Go to cart
-    router.push('/cart');
-  } else {
-    alert('Failed to add to cart');
+  try {
+    // ✅ POST to MongoDB API
+    const res = await fetch('/api/cart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        cartId, 
+        bookId: book.id, 
+        quantity 
+      }),
+    });
+
+    const data = await res.json();
+    console.log('POST /api/cart response:', data);
+    
+    if (res.ok) {
+      console.log('✅ Successfully added to cart!');
+      // Notify navbar
+      window.dispatchEvent(new CustomEvent('cartUpdated'));
+      // Show success message and optionally go to cart
+      alert(`${quantity} item(s) added to cart!`);
+      // You can uncomment below to automatically go to cart
+      // router.push('/cart');
+    } else {
+      console.error('❌ Add to cart failed:', data.error);
+      alert(`Failed to add to cart: ${data.error || 'Unknown error'}`);
+    }
+  } catch (error) {
+    console.error('❌ Error adding to cart:', error);
+    alert('Error adding to cart. Please try again.');
   }
 };
 
