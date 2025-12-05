@@ -7,6 +7,13 @@ import { Book } from './types';
 export default function HomePage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [testResult, setTestResult] = useState<string>('');
+  const [cartId, setCartId] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    setCartId(localStorage.getItem('cartId'));
+  }, []);
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -22,23 +29,24 @@ export default function HomePage() {
     console.log(`Adding book ${bookId} to cart...`);
     
     // Use existing cartId or create one
-    let cartId = localStorage.getItem('cartId');
-    if (!cartId) {
-      cartId = crypto.randomUUID();
-      localStorage.setItem('cartId', cartId);
-      console.log('Created new cartId:', cartId);
+    let currentCartId = localStorage.getItem('cartId');
+    if (!currentCartId) {
+      currentCartId = crypto.randomUUID();
+      localStorage.setItem('cartId', currentCartId);
+      setCartId(currentCartId);
+      console.log('Created new cartId:', currentCartId);
     } else {
-      console.log('Using existing cartId:', cartId);
+      console.log('Using existing cartId:', currentCartId);
     }
 
     try {
-      console.log('Calling POST /api/cart with:', { cartId, bookId, quantity: 1 });
+      console.log('Calling POST /api/cart with:', { cartId: currentCartId, bookId, quantity: 1 });
       
       const res = await fetch('/api/cart', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          cartId, 
+          cartId: currentCartId, 
           bookId, 
           quantity: 1 
         }),
@@ -72,12 +80,13 @@ export default function HomePage() {
     console.log('🧪 Starting cart debug test...');
     setTestResult('Running debug test...');
     
-    let cartId = localStorage.getItem('cartId');
-    if (!cartId) {
-      cartId = crypto.randomUUID();
-      localStorage.setItem('cartId', cartId);
-      console.log('Created new cartId for test:', cartId);
-      setTestResult(`Created new cartId: ${cartId}`);
+    let currentCartId = localStorage.getItem('cartId');
+    if (!currentCartId) {
+      currentCartId = crypto.randomUUID();
+      localStorage.setItem('cartId', currentCartId);
+      setCartId(currentCartId);
+      console.log('Created new cartId for test:', currentCartId);
+      setTestResult(`Created new cartId: ${currentCartId}`);
     }
     
     try {
@@ -87,7 +96,7 @@ export default function HomePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          cartId, 
+          cartId: currentCartId, 
           bookId: '1', 
           quantity: 2 
         }),
@@ -103,7 +112,7 @@ export default function HomePage() {
       
       // Test 2: Fetch cart to verify
       console.log('🧪 Test 2: Fetching cart to verify...');
-      const getRes = await fetch(`/api/cart?cartId=${cartId}`);
+      const getRes = await fetch(`/api/cart?cartId=${currentCartId}`);
       const getData = await getRes.json();
       console.log('GET response:', getData);
       
@@ -157,10 +166,20 @@ export default function HomePage() {
   // ✅ Clear cart and localStorage
   const clearCartTest = () => {
     localStorage.removeItem('cartId');
+    setCartId(null);
     window.dispatchEvent(new CustomEvent('cartUpdated'));
     setTestResult('🛒 Cart cleared from localStorage!');
     console.log('Cart cleared from localStorage');
   };
+
+  if (!isClient) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="text-center mt-4">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -184,32 +203,32 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             <button
               onClick={runCartDebugTest}
-              className="bg-blue-600 text-white px-4 py-3 rounded hover:bg-blue-700 transition font-medium"
+              className="bg-blue-600 text-white px-4 py-3 rounded hover:bg-blue-700 transition font-medium cursor-pointer"
             >
               🧪 Run Cart Test
             </button>
             
             <button
               onClick={testMongoDBConnection}
-              className="bg-purple-600 text-white px-4 py-3 rounded hover:bg-purple-700 transition font-medium"
+              className="bg-purple-600 text-white px-4 py-3 rounded hover:bg-purple-700 transition font-medium cursor-pointer"
             >
               🗄️ Test MongoDB
             </button>
             
             <button
               onClick={clearCartTest}
-              className="bg-red-600 text-white px-4 py-3 rounded hover:bg-red-700 transition font-medium"
+              className="bg-red-600 text-white px-4 py-3 rounded hover:bg-red-700 transition font-medium cursor-pointer"
             >
               🗑️ Clear Cart
             </button>
             
             <button
               onClick={() => {
-                const cartId = localStorage.getItem('cartId');
-                setTestResult(cartId ? `Cart ID: ${cartId}` : 'No cart ID found');
-                console.log('Current cartId:', cartId);
+                const currentCartId = localStorage.getItem('cartId');
+                setTestResult(currentCartId ? `Cart ID: ${currentCartId}` : 'No cart ID found');
+                console.log('Current cartId:', currentCartId);
               }}
-              className="bg-yellow-600 text-white px-4 py-3 rounded hover:bg-yellow-700 transition font-medium"
+              className="bg-yellow-600 text-white px-4 py-3 rounded hover:bg-yellow-700 transition font-medium cursor-pointer"
             >
               🔍 Show Cart ID
             </button>
@@ -234,11 +253,10 @@ export default function HomePage() {
       <div className="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg border border-gray-300 z-50 max-w-xs">
         <h3 className="font-bold mb-2">🛒 Current Cart Status</h3>
         <p className="text-sm text-gray-600 mb-2">
-          <strong>Cart ID:</strong> {localStorage.getItem('cartId') ? 'Set' : 'Not set'}
+          <strong>Cart ID:</strong> {cartId ? 'Set' : 'Not set'}
         </p>
         <button
           onClick={() => {
-            const cartId = localStorage.getItem('cartId');
             if (cartId) {
               fetch(`/api/cart?cartId=${cartId}`)
                 .then(res => res.json())
@@ -250,7 +268,7 @@ export default function HomePage() {
               setTestResult('No cart ID found');
             }
           }}
-          className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded w-full"
+          className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded w-full cursor-pointer"
         >
           Check Cart Items
         </button>

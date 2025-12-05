@@ -50,3 +50,20 @@ export interface Review {
   timestamp: string;
   verified: boolean;
 }
+
+export interface CartItemDB {
+  bookId: string;
+  quantity: number;
+}
+
+export interface CartDocument {
+  id?: string;
+  cartId: string;
+  items: CartItemDB[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CartItemWithBook extends CartItemDB {
+  book: Book;
+}
