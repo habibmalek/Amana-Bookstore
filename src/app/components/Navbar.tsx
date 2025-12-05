@@ -7,9 +7,29 @@ import { usePathname } from 'next/navigation';
 export default function Navbar() {
   const [cartCount, setCartCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
 
+  useEffect(() => {
+    setIsMounted(true);
+    updateCartCount();
+    
+    // Listen for cart updates
+    const handleCartUpdated = () => {
+      updateCartCount();
+    };
+    
+    window.addEventListener('cartUpdated', handleCartUpdated);
+    
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdated);
+    };
+  }, []);
+
   const updateCartCount = async () => {
+    // Don't run on server
+    if (typeof window === 'undefined') return;
+    
     const cartId = localStorage.getItem('cartId');
     
     if (!cartId) {
@@ -26,7 +46,6 @@ export default function Navbar() {
         const count = data.totalItems || 0;
         setCartCount(count);
       } else {
-        // If cart not found, clear the cartId
         localStorage.removeItem('cartId');
         setCartCount(0);
       }
@@ -38,20 +57,25 @@ export default function Navbar() {
     }
   };
 
-  useEffect(() => {
-    updateCartCount();
-    
-    // Listen for cart updates
-    const handleCartUpdated = () => {
-      updateCartCount();
-    };
-    
-    window.addEventListener('cartUpdated', handleCartUpdated);
-    
-    return () => {
-      window.removeEventListener('cartUpdated', handleCartUpdated);
-    };
-  }, []);
+  // Don't render anything during SSR or before mounting
+  if (!isMounted) {
+    return (
+      <nav className="bg-white shadow-md fixed w-full top-0 z-10">
+        <div className="container mx-auto px-6 py-3 flex justify-between items-center">
+          <div className="text-2xl font-bold text-gray-800">📚 Amana Bookstore</div>
+          <div className="flex items-center space-x-6">
+            <div className="text-gray-700">Home</div>
+            <div className="flex items-center space-x-2 text-gray-700">
+              <span>My Cart</span>
+              <span className="bg-gray-200 text-gray-600 text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                0
+              </span>
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav className="bg-white shadow-md fixed w-full top-0 z-10">

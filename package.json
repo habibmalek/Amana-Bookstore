@@ -1,16 +1,19 @@
 {
   "name": "amana-bookstore",
   "type": "module",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint .",
     "test:db": "node --loader ts-node/esm --no-warnings=ExperimentalWarning scripts/test-connection.ts",
     "migrate:db": "node scripts/full-migrate.js",
-    "quick:migrate": "node scripts/quick-migrate.js"
+    "quick:migrate": "node scripts/quick-migrate.js",
+    "clean": "rm -rf .next node_modules package-lock.json",
+    "prebuild": "npm run lint -- --quiet",
+    "postbuild": "echo 'Build completed successfully!'"
   },
   "dependencies": {
     "dotenv": "^17.2.3",

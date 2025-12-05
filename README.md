@@ -119,6 +119,19 @@ These handlers illustrate API route structure; they do not persist data. For a r
   - See Next.js docs: [Deployment guide](https://nextjs.org/docs/app/building-your-application/deploying)
   - Or use Vercel dashboard to import the repo and deploy
 
+## 🚀 Deployment Instructions
+
+### Prerequisites
+- Node.js 18+ 
+- MongoDB Atlas account
+- Vercel account (recommended) or any Node.js hosting
+
+### Environment Variables
+- Create a `.env.local` file:
+- ```env
+MONGODB_URI=your_mongodb_connection_string
+MONGODB_DB=amana_bookstore
+
 ---
 
 ## License

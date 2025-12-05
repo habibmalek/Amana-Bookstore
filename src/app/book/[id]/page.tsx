@@ -1,7 +1,7 @@
 // src/app/book/[id]/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Book, Review } from '@/app/types';
 
@@ -10,7 +10,6 @@ export default function BookDetailPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [quantity, setQuantity] = useState(1);
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
 
   // Fetch book and reviews from MongoDB API
   useEffect(() => {

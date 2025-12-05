@@ -124,11 +124,6 @@ const BookGrid: React.FC<BookGridProps> = ({ books, onAddToCart }) => {
     setCurrentPage(page);
   };
 
-  // Handle items per page change
-  const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1);
-  };
 
   return (
     <div className="container mx-auto px-4 py-8">

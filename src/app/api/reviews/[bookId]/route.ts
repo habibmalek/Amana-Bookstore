@@ -1,13 +1,13 @@
 // src/app/api/reviews/[bookId]/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 
 export async function GET(
-  request: Request,
-  { params }: { params: { bookId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ bookId: string }> }
 ) {
   try {
-    const { bookId } = params;
+    const { bookId } = await params; // Await the params promise
     const db = await getDb();
     const reviews = await db
       .collection('reviews')

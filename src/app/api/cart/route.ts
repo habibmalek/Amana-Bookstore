@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable prefer-const */
-import { CartDocument, CartItemDB } from "@/app/types";
+import { CartDocument } from "@/app/types";
 import { getDb } from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 

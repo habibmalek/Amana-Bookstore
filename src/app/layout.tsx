@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Navbar from './components/Navbar';
+import Toast from './components/Toast';
 import "./globals.css";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,17 +25,39 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // NOTE: In a real-world application, cart state would be managed globally using
-  // Context API or a state management library like Zustand or Redux.
-  // The cart item count for the Navbar is managed on the client-side within the component itself
-  // to adhere to the project's constraint of not using Context API.
-  // Each page interacting with the cart will manage its state via localStorage.
-
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 pt-16`}>
+    <html lang="en" suppressHydrationWarning>
+      <body 
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 pt-16`}
+        suppressHydrationWarning
+      >
+        <Toast />
         <Navbar />
         <main>{children}</main>
+        
+        {/* Script to handle browser extension interference */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Remove Grammarly and other extension attributes
+              if (typeof window !== 'undefined') {
+                const observer = new MutationObserver(() => {
+                  if (document.body.hasAttribute('data-new-gr-c-s-check-loaded')) {
+                    document.body.removeAttribute('data-new-gr-c-s-check-loaded');
+                  }
+                  if (document.body.hasAttribute('data-gr-ext-installed')) {
+                    document.body.removeAttribute('data-gr-ext-installed');
+                  }
+                });
+                
+                observer.observe(document.body, { attributes: true });
+                
+                // Clean up on unmount
+                window.addEventListener('beforeunload', () => observer.disconnect());
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );
