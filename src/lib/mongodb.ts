@@ -1,63 +1,121 @@
-// /lib/mongodb.ts - ADD THESE LINES AT THE VERY TOP
-import { MongoClient } from 'mongodb';
+// /lib/mongodb.ts
+import { MongoClient, Db } from 'mongodb';
 
-// ⚠️ DEBUG LOG: This will run when the module is imported during build
-console.log('[DEBUG BUILD-TIME] MONGODB_URI exists?:', !!process.env.MONGODB_URI);
-console.log('[DEBUG BUILD-TIME] MONGODB_URI value:', process.env.MONGODB_URI ? '[HIDDEN]' : 'UNDEFINED');
-console.log('[DEBUG BUILD-TIME] NODE_ENV:', process.env.NODE_ENV);
-
-const MONGODB_URI = process.env.MONGODB_URI;
-const MONGODB_DB = process.env.MONGODB_DB;
-
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
+// Define types for our cached connection
+interface MongoCache {
+  client: MongoClient | null;
+  promise: Promise<MongoClient> | null;
+  db: Db | null;
 }
 
-if (!MONGODB_DB) {
-  throw new Error('Please define the MONGODB_DB environment variable inside .env.local');
-}
-
-// Declare cached connection types
-interface MongoConnection {
-  client: MongoClient;
-  db: ReturnType<MongoClient['db']>;
-}
-
-// Use a global variable to cache the connection in development
-// This prevents creating new connections on every API request
+// Use a global variable in development to persist the connection
+// This prevents multiple connections during hot-reload
 declare global {
   // eslint-disable-next-line no-var
-  var _mongoClientPromise: Promise<MongoClient> | undefined;
+  var _mongoCache: MongoCache | undefined;
 }
 
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
+// Initialize cache
+const mongoCache: MongoCache = global._mongoCache || {
+  client: null,
+  promise: null,
+  db: null,
+};
 
-// In production, create a new MongoClient instance
-if (process.env.NODE_ENV === 'production') {
-  client = new MongoClient(MONGODB_URI);
-  clientPromise = client.connect();
-} else {
-  // In development, use a global variable to preserve connection across module reloads
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(MONGODB_URI);
-    global._mongoClientPromise = client.connect();
+// In development, assign to global variable
+if (process.env.NODE_ENV !== 'production') {
+  global._mongoCache = mongoCache;
+}
+
+/**
+ * Get a connection to the MongoDB database
+ * Only connects when first called, then caches the connection
+ */
+export async function getDb(): Promise<Db> {
+  // Validate environment variables HERE, at runtime (not at module load)
+  const MONGODB_URI = process.env.MONGODB_URI;
+  const MONGODB_DB = process.env.MONGODB_DB;
+
+  if (!MONGODB_URI) {
+    console.error('❌ MONGODB_URI is undefined at runtime.');
+    throw new Error('MONGODB_URI environment variable is not configured.');
   }
-  clientPromise = global._mongoClientPromise;
-}
 
-// The main function to get the database - THIS IS WHAT YOUR API ROUTE CALLS
-export async function getDb() {
+  if (!MONGODB_DB) {
+    console.error('❌ MONGODB_DB is undefined at runtime.');
+    throw new Error('MONGODB_DB environment variable is not configured.');
+  }
+
+  // Validate URI format at runtime
+  if (!MONGODB_URI.startsWith('mongodb://') && !MONGODB_URI.startsWith('mongodb+srv://')) {
+    console.error('❌ Invalid MONGODB_URI format at runtime.');
+    throw new Error('Invalid MONGODB_URI format. Must start with mongodb:// or mongodb+srv://');
+  }
+
+  // If we already have a connected database instance, return it
+  if (mongoCache.db) {
+    return mongoCache.db;
+  }
+
+  // If we're already connecting, wait for that connection
+  if (mongoCache.promise) {
+    await mongoCache.promise;
+    return mongoCache.db!;
+  }
+
   try {
-    // ⚠️ The connection ONLY happens here, when the function is called at runtime.
-    await clientPromise;
-    const db = client.db(MONGODB_DB);
-    return db;
+    console.log('🔗 Establishing MongoDB connection...');
+    
+    // Create new MongoClient with connection options
+    const client = new MongoClient(MONGODB_URI, {
+      maxPoolSize: 10,
+      minPoolSize: 5,
+      serverSelectionTimeoutMS: 15000,
+      socketTimeoutMS: 45000,
+    });
+
+    // Store the promise (not the result) to prevent multiple connections
+    mongoCache.promise = client.connect();
+
+    // Wait for connection
+    mongoCache.client = await mongoCache.promise;
+    mongoCache.db = mongoCache.client.db(MONGODB_DB);
+
+    console.log('✅ MongoDB connected successfully');
+    return mongoCache.db;
   } catch (error) {
-    console.error('Failed to connect to MongoDB:', error);
-    throw new Error('Database connection failed');
+    // Clear cache on connection failure
+    mongoCache.client = null;
+    mongoCache.promise = null;
+    mongoCache.db = null;
+
+    console.error('❌ MongoDB connection failed:', error);
+    throw new Error(`Database connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
-// Optional: Export the client promise for direct use elsewhere if needed
-export { clientPromise };
+/**
+ * Close the MongoDB connection (useful for testing or cleanup)
+ */
+export async function closeConnection(): Promise<void> {
+  if (mongoCache.client) {
+    await mongoCache.client.close();
+    mongoCache.client = null;
+    mongoCache.promise = null;
+    mongoCache.db = null;
+    console.log('🔌 MongoDB connection closed');
+  }
+}
+
+/**
+ * Check if database is connected (health check)
+ */
+export async function checkConnection(): Promise<boolean> {
+  try {
+    const db = await getDb();
+    await db.command({ ping: 1 });
+    return true;
+  } catch {
+    return false;
+  }
+}
