@@ -1,5 +1,10 @@
-// /lib/mongodb.ts
+// /lib/mongodb.ts - ADD THESE LINES AT THE VERY TOP
 import { MongoClient } from 'mongodb';
+
+// ⚠️ DEBUG LOG: This will run when the module is imported during build
+console.log('[DEBUG BUILD-TIME] MONGODB_URI exists?:', !!process.env.MONGODB_URI);
+console.log('[DEBUG BUILD-TIME] MONGODB_URI value:', process.env.MONGODB_URI ? '[HIDDEN]' : 'UNDEFINED');
+console.log('[DEBUG BUILD-TIME] NODE_ENV:', process.env.NODE_ENV);
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB = process.env.MONGODB_DB;
