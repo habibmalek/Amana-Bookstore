@@ -1,51 +1,58 @@
-// src/lib/mongodb.ts
+// /lib/mongodb.ts
 import { MongoClient } from 'mongodb';
 
-// 🔒 Enforce secure TLS for MongoDB Atlas compatibility
-if (typeof process !== 'undefined' && process?.version) {
-  // This helps avoid TLS 1.0/1.1 issues with Atlas
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '1';
+const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_DB = process.env.MONGODB_DB;
+
+if (!MONGODB_URI) {
+  throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
 }
 
-if (!process.env.MONGODB_URI) {
-  throw new Error('MONGODB_URI is missing in environment variables');
-}
-if (!process.env.MONGODB_DB) {
-  throw new Error('MONGODB_DB is missing in environment variables');
+if (!MONGODB_DB) {
+  throw new Error('Please define the MONGODB_DB environment variable inside .env.local');
 }
 
-const uri = process.env.MONGODB_URI;
-const dbName = process.env.MONGODB_DB;
+// Declare cached connection types
+interface MongoConnection {
+  client: MongoClient;
+  db: ReturnType<MongoClient['db']>;
+}
 
-// ⚠️ Add TLS options directly in the client config
-const clientOptions = {
-  serverSelectionTimeoutMS: 10000,
-  tls: true,
-  // Optional but sometimes needed in dev: DO NOT use in production
-  // tlsAllowInvalidCertificates: false,
-  // tlsInsecure: false,
-};
+// Use a global variable to cache the connection in development
+// This prevents creating new connections on every API request
+declare global {
+  // eslint-disable-next-line no-var
+  var _mongoClientPromise: Promise<MongoClient> | undefined;
+}
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
 
-if (process.env.NODE_ENV === 'development') {
-  const globalWithMongo = global as typeof global & {
-    _mongoClientPromise?: Promise<MongoClient>;
-  };
-  if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(uri, clientOptions);
-    globalWithMongo._mongoClientPromise = client.connect();
-  }
-  clientPromise = globalWithMongo._mongoClientPromise;
-} else {
-  client = new MongoClient(uri, clientOptions);
+// In production, create a new MongoClient instance
+if (process.env.NODE_ENV === 'production') {
+  client = new MongoClient(MONGODB_URI);
   clientPromise = client.connect();
+} else {
+  // In development, use a global variable to preserve connection across module reloads
+  if (!global._mongoClientPromise) {
+    client = new MongoClient(MONGODB_URI);
+    global._mongoClientPromise = client.connect();
+  }
+  clientPromise = global._mongoClientPromise;
 }
 
+// The main function to get the database - THIS IS WHAT YOUR API ROUTE CALLS
 export async function getDb() {
-  const client = await clientPromise;
-  return client.db(dbName);
+  try {
+    // ⚠️ The connection ONLY happens here, when the function is called at runtime.
+    await clientPromise;
+    const db = client.db(MONGODB_DB);
+    return db;
+  } catch (error) {
+    console.error('Failed to connect to MongoDB:', error);
+    throw new Error('Database connection failed');
+  }
 }
 
+// Optional: Export the client promise for direct use elsewhere if needed
 export { clientPromise };
