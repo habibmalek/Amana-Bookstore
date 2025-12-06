@@ -1,6 +1,7 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
-require('dotenv').config();
-const { MongoClient } = require('mongodb');
+import { config } from 'dotenv';
+import { MongoClient } from 'mongodb';
+
+config();
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB = process.env.MONGODB_DB;

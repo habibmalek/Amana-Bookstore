@@ -10,7 +10,6 @@
     "lint": "eslint .",
     "test:db": "node --loader ts-node/esm --no-warnings=ExperimentalWarning scripts/test-connection.ts",
     "migrate:db": "node scripts/full-migrate.js",
-    "quick:migrate": "node scripts/quick-migrate.js",
     "clean": "rm -rf .next node_modules package-lock.json",
     "prebuild": "npm run lint -- --quiet",
     "postbuild": "echo 'Build completed successfully!'"
